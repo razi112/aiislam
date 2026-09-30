@@ -1,6 +1,6 @@
 ﻿import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from 'react'
 import type { User } from 'firebase/auth'
-import { onAuthStateChanged } from 'firebase/auth'
+import { onAuthStateChanged, updateProfile } from 'firebase/auth'
 import { auth } from '../firebase'
 
 export const GUEST_MESSAGE_LIMIT = 5
@@ -14,6 +14,8 @@ interface AuthContextValue {
   guestLimitReached: boolean
   incrementGuestCount: () => void
   resetGuestCount: () => void
+  saveDisplayName: (name: string) => Promise<void>
+  savePhotoURL: (url: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -24,6 +26,8 @@ const AuthContext = createContext<AuthContextValue>({
   guestLimitReached: false,
   incrementGuestCount: () => {},
   resetGuestCount: () => {},
+  saveDisplayName: async () => {},
+  savePhotoURL: async () => {},
 })
 
 export function useAuth() {
@@ -74,6 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { localStorage.removeItem(GUEST_COUNT_KEY) } catch { /* ignore */ }
   }, [])
 
+  // Update Firebase display name and force a local re-render by calling reload()
+  const saveDisplayName = useCallback(async (name: string) => {
+    if (!auth.currentUser) throw new Error('Not signed in')
+    await updateProfile(auth.currentUser, { displayName: name })
+    await auth.currentUser.reload()
+    // Trigger a re-render with the refreshed user object
+    setUser({ ...auth.currentUser })
+  }, [])
+
+  // Update Firebase photoURL
+  const savePhotoURL = useCallback(async (url: string) => {
+    if (!auth.currentUser) throw new Error('Not signed in')
+    await updateProfile(auth.currentUser, { photoURL: url })
+    await auth.currentUser.reload()
+    setUser({ ...auth.currentUser })
+  }, [])
+
   const isGuest = !user && !loading
   const guestLimitReached = isGuest && guestMessageCount >= GUEST_MESSAGE_LIMIT
 
@@ -81,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, loading, isGuest, guestMessageCount, guestLimitReached,
       incrementGuestCount, resetGuestCount,
+      saveDisplayName, savePhotoURL,
     }}>
       {children}
     </AuthContext.Provider>

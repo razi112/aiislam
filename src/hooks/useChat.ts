@@ -24,24 +24,20 @@ export interface Chat {
   createdAt: Date
 }
 
-// OpenRouter — OpenAI-compatible API, supports many models
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY as string
+// Groq — OpenAI-compatible API with fast inference
+const OPENROUTER_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const OPENROUTER_KEY = import.meta.env.VITE_GROQ_API_KEY as string
 
-// Primary: llama-3.3-70b is the fastest high-quality model on OpenRouter
-// Fallbacks: gemini-flash variants on quota/overload
+// Primary: gpt-oss-120b on Groq (best quality), fallback to gpt-oss-20b (fastest/cheapest)
 const MODEL_CHAIN = [
-  'meta-llama/llama-3.3-70b-instruct',
-  'google/gemini-2.0-flash-001',
-  'google/gemini-flash-1.5',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
 ]
 
 // Shared request headers
 const OR_HEADERS = {
   'Authorization': `Bearer ${OPENROUTER_KEY}`,
   'Content-Type': 'application/json',
-  'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
-  'X-Title': 'AI Islam',
 }
 
 // Only keep the last N messages to reduce payload size and TTFT
@@ -194,7 +190,6 @@ async function streamWithFallback(
           stream: true,
           max_tokens: maxTokens,
           temperature: 0.7,
-          stream_options: { include_usage: false },
         }),
         signal,
       })
@@ -302,12 +297,11 @@ async function streamWithThinking(
     method: 'POST',
     headers: OR_HEADERS,
     body: JSON.stringify({
-      model: 'meta-llama/llama-3.3-70b-instruct',
+      model: MODEL_CHAIN[0],
       messages: builtMessages,
       stream: true,
       max_tokens: 16000,
       temperature: 0.7,
-      stream_options: { include_usage: false },
     }),
     signal,
   })

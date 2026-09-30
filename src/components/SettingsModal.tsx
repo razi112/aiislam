@@ -3,7 +3,6 @@ import { X, Sun, Moon, Monitor, Trash2, ChevronRight, Camera, Loader, Mail, Penc
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../supabase'
 
 interface Props {
   onClose: () => void
@@ -78,13 +77,13 @@ export default function SettingsModal({ onClose, onClearChats }: Props) {
   const [contentKey, setContentKey] = useState(0)
 
   const { theme, contrast, accent, setTheme, setContrast, setAccent } = useTheme()
-  const { user, isGuest } = useAuth()
+  const { user, isGuest, saveDisplayName, savePhotoURL } = useAuth()
   const navigate = useNavigate()
 
-  // profile state
-  const storedName = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? 'User'
+  // profile state — derive from Firebase user (displayName / photoURL)
+  const storedName = user?.displayName ?? 'User'
   const [displayName, setDisplayName] = useState(storedName)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL ?? null)
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -92,22 +91,33 @@ export default function SettingsModal({ onClose, onClearChats }: Props) {
   const [profileErr, setProfileErr] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // keep avatar in sync if Firebase user object updates
   useEffect(() => {
-    const url = user?.user_metadata?.avatar_url ?? null
-    if (url) setAvatarUrl(url)
-  }, [user?.user_metadata?.avatar_url])
+    const url = user?.photoURL ?? null
+    setAvatarUrl(url)
+  }, [user?.photoURL])
+
+  // keep name in sync
+  useEffect(() => {
+    setDisplayName(user?.displayName ?? 'User')
+  }, [user?.displayName])
 
   function showProfileOk(msg: string) { setProfileOk(msg); setTimeout(() => setProfileOk(''), 3000) }
   function showProfileErr(msg: string) { setProfileErr(msg); setTimeout(() => setProfileErr(''), 5000) }
 
   async function saveName() {
-    if (!displayName.trim() || displayName.trim() === storedName) { setEditingName(false); return }
+    const trimmed = displayName.trim()
+    if (!trimmed || trimmed === (user?.displayName ?? 'User')) { setEditingName(false); return }
     setSavingName(true)
-    const { error } = await supabase.auth.updateUser({ data: { full_name: displayName.trim() } })
-    setSavingName(false)
-    if (error) { showProfileErr(error.message); return }
-    setEditingName(false)
-    showProfileOk('Name updated.')
+    try {
+      await saveDisplayName(trimmed)
+      setEditingName(false)
+      showProfileOk('Name updated.')
+    } catch (err: unknown) {
+      showProfileErr(err instanceof Error ? err.message : 'Failed to update name.')
+    } finally {
+      setSavingName(false)
+    }
   }
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -116,35 +126,32 @@ export default function SettingsModal({ onClose, onClearChats }: Props) {
     if (!file.type.startsWith('image/')) { showProfileErr('Please select an image file.'); return }
     if (fileRef.current) fileRef.current.value = ''
     setUploadingAvatar(true)
+
+    // Show local preview immediately
     const localPreview = URL.createObjectURL(file)
     setAvatarUrl(localPreview)
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const filePath = user.id + '/avatar.' + ext
-    const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true, contentType: file.type })
-    if (upErr) {
-      const reader = new FileReader()
-      reader.onload = async () => {
-        const base64 = reader.result as string
-        const { error: upd } = await supabase.auth.updateUser({ data: { avatar_url: base64 } })
-        setUploadingAvatar(false)
-        if (upd) { showProfileErr(upd.message); return }
-        setAvatarUrl(base64); showProfileOk('Photo updated.')
-      }
-      reader.onerror = () => { setUploadingAvatar(false); showProfileErr('Failed to read image.') }
-      reader.readAsDataURL(file)
-      return
+
+    try {
+      // Convert to base64 and store as Firebase photoURL
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      await savePhotoURL(base64)
+      setAvatarUrl(base64)
+      showProfileOk('Photo updated.')
+    } catch (err: unknown) {
+      showProfileErr(err instanceof Error ? err.message : 'Failed to upload photo.')
+    } finally {
+      setUploadingAvatar(false)
     }
-    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath)
-    const newUrl = urlData.publicUrl + '?t=' + Date.now()
-    const { error: upd } = await supabase.auth.updateUser({ data: { avatar_url: newUrl } })
-    setUploadingAvatar(false)
-    if (upd) { showProfileErr(upd.message); return }
-    setAvatarUrl(newUrl); showProfileOk('Photo updated.')
   }
 
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
   const email = user?.email ?? ''
-  const provider: string = user?.app_metadata?.provider ?? 'email'
+  const provider: string = user?.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'email'
   // personalization
   const [aboutYou, setAboutYou] = useState('')
   const [responseStyle, setResponseStylePref] = useState('')
