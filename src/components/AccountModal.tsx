@@ -8,14 +8,13 @@ import { useAuth } from '../context/AuthContext'
 interface Props { onClose: () => void }
 
 export default function AccountModal({ onClose }: Props) {
-  const { user, saveDisplayName, savePhotoURL } = useAuth()
+  const { user, saveDisplayName, savePhotoURL, localPhotoURL } = useAuth()
   const navigate = useNavigate()
 
   const storedName: string = user?.displayName ?? 'User'
-  const storedPhoto: string | null = user?.photoURL ?? null
 
   const [displayName, setDisplayName] = useState(storedName)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(storedPhoto)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(localPhotoURL)
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -30,9 +29,8 @@ export default function AccountModal({ onClose }: Props) {
   }, [user?.displayName])
 
   useEffect(() => {
-    const url = user?.photoURL ?? null
-    setAvatarUrl(url)
-  }, [user?.photoURL])
+    setAvatarUrl(localPhotoURL)
+  }, [localPhotoURL])
 
   const email = user?.email ?? ''
   const provider: string = user?.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'email'

@@ -26,11 +26,11 @@ export default function Sidebar({
   const [editValue, setEditValue] = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
   const editRef = useRef<HTMLInputElement>(null)
-  const { user, isGuest, guestMessageCount } = useAuth()
+  const { user, isGuest, guestMessageCount, localPhotoURL } = useAuth()
   const navigate = useNavigate()
 
   const name: string = user?.displayName ?? 'Account'
-  const avatar: string | null = user?.photoURL ?? null
+  const avatar: string | null = localPhotoURL ?? null
   const email: string = user?.email ?? ''
   const initials = name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
 

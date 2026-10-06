@@ -77,13 +77,13 @@ export default function SettingsModal({ onClose, onClearChats }: Props) {
   const [contentKey, setContentKey] = useState(0)
 
   const { theme, contrast, accent, setTheme, setContrast, setAccent } = useTheme()
-  const { user, isGuest, saveDisplayName, savePhotoURL } = useAuth()
+  const { user, isGuest, saveDisplayName, savePhotoURL, localPhotoURL } = useAuth()
   const navigate = useNavigate()
 
   // profile state — derive from Firebase user (displayName / photoURL)
   const storedName = user?.displayName ?? 'User'
   const [displayName, setDisplayName] = useState(storedName)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL ?? null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(localPhotoURL ?? null)
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -91,11 +91,10 @@ export default function SettingsModal({ onClose, onClearChats }: Props) {
   const [profileErr, setProfileErr] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // keep avatar in sync if Firebase user object updates
+  // keep avatar in sync if photo updates
   useEffect(() => {
-    const url = user?.photoURL ?? null
-    setAvatarUrl(url)
-  }, [user?.photoURL])
+    setAvatarUrl(localPhotoURL ?? null)
+  }, [localPhotoURL])
 
   // keep name in sync
   useEffect(() => {

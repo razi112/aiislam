@@ -1,6 +1,8 @@
-// Vercel Edge Function — proxies requests to OpenRouter API
+// Vercel Edge Function — proxies requests to Groq API
 // Keeps the API key server-side in production
 export const config = { runtime: 'edge' }
+
+declare const process: { env: Record<string, string | undefined> }
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {

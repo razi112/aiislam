@@ -2,6 +2,8 @@
 import type { User } from 'firebase/auth'
 import { onAuthStateChanged, updateProfile } from 'firebase/auth'
 import { auth } from '../firebase'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase'
 
 export const GUEST_MESSAGE_LIMIT = 5
 const GUEST_COUNT_KEY = 'minnal_guest_msg_count'
@@ -16,6 +18,7 @@ interface AuthContextValue {
   resetGuestCount: () => void
   saveDisplayName: (name: string) => Promise<void>
   savePhotoURL: (url: string) => Promise<void>
+  localPhotoURL: string | null
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -28,6 +31,7 @@ const AuthContext = createContext<AuthContextValue>({
   resetGuestCount: () => {},
   saveDisplayName: async () => {},
   savePhotoURL: async () => {},
+  localPhotoURL: null,
 })
 
 export function useAuth() {
@@ -37,14 +41,32 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [localPhotoURL, setLocalPhotoURL] = useState<string | null>(null)
   const [guestMessageCount, setGuestMessageCount] = useState<number>(() => {
     try { return parseInt(localStorage.getItem(GUEST_COUNT_KEY) ?? '0', 10) || 0 } catch { return 0 }
   })
   const initializedRef = useRef(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
+
+      // Load profile photo from Firestore (supports base64)
+      if (firebaseUser) {
+        try {
+          const snap = await getDoc(doc(db, 'users', firebaseUser.uid, 'profile', 'data'))
+          if (snap.exists() && snap.data()?.photoBase64) {
+            setLocalPhotoURL(snap.data().photoBase64)
+          } else {
+            setLocalPhotoURL(firebaseUser.photoURL ?? null)
+          }
+        } catch {
+          setLocalPhotoURL(firebaseUser.photoURL ?? null)
+        }
+      } else {
+        setLocalPhotoURL(null)
+      }
+
       if (!initializedRef.current) {
         initializedRef.current = true
         setLoading(false)
@@ -78,21 +100,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { localStorage.removeItem(GUEST_COUNT_KEY) } catch { /* ignore */ }
   }, [])
 
-  // Update Firebase display name and force a local re-render by calling reload()
+  // Update Firebase display name
   const saveDisplayName = useCallback(async (name: string) => {
     if (!auth.currentUser) throw new Error('Not signed in')
     await updateProfile(auth.currentUser, { displayName: name })
     await auth.currentUser.reload()
-    // Trigger a re-render with the refreshed user object
     setUser({ ...auth.currentUser })
   }, [])
 
-  // Update Firebase photoURL
-  const savePhotoURL = useCallback(async (url: string) => {
+  // Save photo as base64 in Firestore (Firebase Auth photoURL has a size limit)
+  const savePhotoURL = useCallback(async (base64: string) => {
     if (!auth.currentUser) throw new Error('Not signed in')
-    await updateProfile(auth.currentUser, { photoURL: url })
-    await auth.currentUser.reload()
-    setUser({ ...auth.currentUser })
+    const uid = auth.currentUser.uid
+    await setDoc(
+      doc(db, 'users', uid, 'profile', 'data'),
+      { photoBase64: base64 },
+      { merge: true }
+    )
+    setLocalPhotoURL(base64)
   }, [])
 
   const isGuest = !user && !loading
@@ -102,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, loading, isGuest, guestMessageCount, guestLimitReached,
       incrementGuestCount, resetGuestCount,
-      saveDisplayName, savePhotoURL,
+      saveDisplayName, savePhotoURL, localPhotoURL,
     }}>
       {children}
     </AuthContext.Provider>
