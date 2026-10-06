@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, MessageSquare, Pencil, Trash2, Settings, X, LogIn, ChevronLeft, Sparkles } from 'lucide-react'
+import { Plus, MessageSquare, Pencil, Trash2, Settings, X, LogIn, ChevronLeft, Sparkles, BookOpen } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Chat } from '../hooks/useChat'
 import { useAuth, GUEST_MESSAGE_LIMIT } from '../context/AuthContext'
@@ -15,11 +15,14 @@ interface Props {
   onDeleteChat: (id: string) => void
   onRenameChat: (id: string, title: string) => void
   onOpenSettings: () => void
+  activeView?: 'chat' | 'quran'
+  onQuranResearch?: () => void
 }
 
 export default function Sidebar({
   chats, activeChatId, collapsed, onToggle, onNewChat,
   onSelectChat, onDeleteChat, onRenameChat, onOpenSettings,
+  activeView = 'chat', onQuranResearch,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -90,20 +93,49 @@ export default function Sidebar({
         </div>
 
         {/* ── New Chat button ── */}
-        <div className="px-3 pt-3 pb-2 shrink-0">
+        <div className="px-3 pt-3 pb-1 shrink-0">
           <button
             onClick={onNewChat}
             className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 active:scale-95"
             style={{
-              background: 'var(--accent)',
-              color: '#fff',
-              boxShadow: '0 2px 12px var(--accent-subtle)',
+              background: activeView === 'chat' ? 'var(--accent)' : 'var(--bg-hover)',
+              color: activeView === 'chat' ? '#fff' : 'var(--text-secondary)',
+              border: activeView === 'chat' ? 'none' : '1px solid var(--border)',
+              boxShadow: activeView === 'chat' ? '0 2px 12px var(--accent-subtle)' : 'none',
             }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            onMouseEnter={e => { if (activeView !== 'chat') e.currentTarget.style.background = 'var(--bg-secondary)' }}
+            onMouseLeave={e => { if (activeView !== 'chat') e.currentTarget.style.background = 'var(--bg-hover)' }}
           >
             <Plus size={15} strokeWidth={2.5} />
             <span>New Chat</span>
+          </button>
+        </div>
+
+        {/* ── Quran Research button ── */}
+        <div className="px-3 pt-1 pb-2 shrink-0">
+          <button
+            onClick={onQuranResearch}
+            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 active:scale-95"
+            style={{
+              background: activeView === 'quran' ? 'var(--accent-subtle)' : 'transparent',
+              color: activeView === 'quran' ? 'var(--accent)' : 'var(--text-secondary)',
+              border: `1px solid ${activeView === 'quran' ? 'var(--accent-border)' : 'transparent'}`,
+            }}
+            onMouseEnter={e => {
+              if (activeView !== 'quran') {
+                e.currentTarget.style.background = 'var(--bg-hover)'
+                e.currentTarget.style.color = 'var(--text-primary)'
+              }
+            }}
+            onMouseLeave={e => {
+              if (activeView !== 'quran') {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--text-secondary)'
+              }
+            }}
+          >
+            <BookOpen size={15} strokeWidth={1.75} />
+            <span>Quran Research</span>
           </button>
         </div>
 

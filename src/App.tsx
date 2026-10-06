@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
-import { PanelLeft } from 'lucide-react'
+import { PanelLeft, BookOpen } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import ChatArea from './components/ChatArea'
 import SettingsModal from './components/SettingsModal'
+import QuranResearch from './pages/QuranResearch'
 import { useChat } from './hooks/useChat'
 import { GUEST_MESSAGE_LIMIT } from './context/AuthContext'
+
+type ActiveView = 'chat' | 'quran'
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [activeView, setActiveView] = useState<ActiveView>('chat')
   const navigate = useNavigate()
 
   // 🔥 PWA states
@@ -73,11 +77,13 @@ export default function App() {
               activeChatId={activeChatId}
               collapsed={sidebarCollapsed}
               onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-              onNewChat={createChat}
-              onSelectChat={(id) => setActiveChatId(id)}
+              onNewChat={() => { createChat(); setActiveView('chat') }}
+              onSelectChat={(id) => { setActiveChatId(id); setActiveView('chat') }}
               onDeleteChat={deleteChat}
               onRenameChat={renameChat}
               onOpenSettings={() => setSettingsOpen(true)}
+              activeView={activeView}
+              onQuranResearch={() => setActiveView('quran')}
             />
           </div>
 
@@ -92,11 +98,13 @@ export default function App() {
               activeChatId={activeChatId}
               collapsed={false}
               onToggle={() => setMobileSidebarOpen(false)}
-              onNewChat={() => { createChat(); setMobileSidebarOpen(false) }}
-              onSelectChat={(id) => { setActiveChatId(id); setMobileSidebarOpen(false) }}
+              onNewChat={() => { createChat(); setMobileSidebarOpen(false); setActiveView('chat') }}
+              onSelectChat={(id) => { setActiveChatId(id); setMobileSidebarOpen(false); setActiveView('chat') }}
               onDeleteChat={deleteChat}
               onRenameChat={renameChat}
               onOpenSettings={() => { setSettingsOpen(true); setMobileSidebarOpen(false) }}
+              activeView={activeView}
+              onQuranResearch={() => { setActiveView('quran'); setMobileSidebarOpen(false) }}
             />
           </div>
         </>
@@ -136,9 +144,18 @@ export default function App() {
 
           {/* Title / Guest badge */}
           <div className="flex-1 min-w-0 flex items-center gap-2">
-            <h1 className="text-sm font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
-              {isGuest ? 'AI Islam' : (activeChat?.title ?? 'AI Islam')}
-            </h1>
+            {activeView === 'quran' ? (
+              <div className="flex items-center gap-2">
+                <BookOpen size={15} style={{ color: 'var(--accent)' }} />
+                <h1 className="text-sm font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+                  Quran Research
+                </h1>
+              </div>
+            ) : (
+              <h1 className="text-sm font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+                {isGuest ? 'AI Islam' : (activeChat?.title ?? 'AI Islam')}
+              </h1>
+            )}
             {isGuest && (
               <span
                 className="shrink-0 text-xs px-2 py-0.5 rounded-full font-medium"
@@ -178,17 +195,23 @@ export default function App() {
           )}
         </header>
 
-        {/* Chat */}
-        <ChatArea
-          chat={activeChat}
-          isTyping={isTyping}
-          streamingContent={streamingContent}
-          streamingThinking={streamingThinking}
-          onSend={sendMessage}
-          onStop={stopGeneration}
-          onRegenerate={regenerate}
-          onEditMessage={editMessage}
-        />
+        {/* Main content — Chat or Quran Research */}
+        {activeView === 'quran' ? (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <QuranResearch />
+          </div>
+        ) : (
+          <ChatArea
+            chat={activeChat}
+            isTyping={isTyping}
+            streamingContent={streamingContent}
+            streamingThinking={streamingThinking}
+            onSend={sendMessage}
+            onStop={stopGeneration}
+            onRegenerate={regenerate}
+            onEditMessage={editMessage}
+          />
+        )}
       </div>
 
       {/* Settings modal — only for logged-in users */}
