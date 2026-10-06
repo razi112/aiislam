@@ -272,36 +272,40 @@
     transition: box-shadow 0.35s ease;
   }
 
-  /* Smooth word fade-in for streaming */
-  .streaming-word {
+  /* ── Modern streaming token animation ── */
+
+  /* Each new token slides up + fades in */
+  .sw-token {
     display: inline;
     opacity: 0;
-    animation: wordFadeIn 0.25s ease forwards;
+    animation: swTokenIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
-  @keyframes wordFadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+  @keyframes swTokenIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* Soft blinking cursor at end of stream */
-  .streaming-cursor {
+  /* Typing cursor — thin, accent-coloured, smooth blink */
+  .sw-cursor {
     display: inline-block;
     width: 2px;
-    height: 1em;
+    height: 0.85em;
     background: var(--accent);
-    border-radius: 1px;
-    margin-left: 2px;
+    border-radius: 2px;
+    margin-left: 1px;
     vertical-align: text-bottom;
-    animation: cursorBlink 0.9s ease-in-out infinite;
+    animation: swCursorBlink 0.75s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  @keyframes cursorBlink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
+  @keyframes swCursorBlink {
+    0%, 45%  { opacity: 1; }
+    55%, 100% { opacity: 0; }
   }
 
-  /* Streaming bubble — no border pulse, just clean */
+  /* Container glow while streaming */
   .streaming-bubble {
-    border-color: var(--border) !important;
+    border-color: var(--accent-border) !important;
+    box-shadow: 0 0 0 1px var(--accent-subtle), 0 2px 16px var(--accent-subtle);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
 }
 

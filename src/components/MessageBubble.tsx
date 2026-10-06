@@ -17,47 +17,29 @@ interface Props {
   streamingThinking?: string
 }
 
-// Strip markdown symbols for clean streaming display
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/#{1,6}\s*/g, '')          // headings: ## ### etc
-    .replace(/\*\*(.+?)\*\*/g, '$1')    // bold **text**
-    .replace(/\*(.+?)\*/g, '$1')        // italic *text*
-    .replace(/`{3}[\s\S]*?`{3}/g, '')   // fenced code blocks
-    .replace(/`([^`]+)`/g, '$1')        // inline code
-    .replace(/^\s*[-*+]\s+/gm, '')      // unordered list bullets
-    .replace(/^\s*\d+\.\s+/gm, '')      // ordered list numbers
-    .replace(/^>\s+/gm, '')             // blockquotes
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links [text](url)
-    .replace(/_{1,2}(.+?)_{1,2}/g, '$1')     // underscores _text_
-    .replace(/~~(.+?)~~/g, '$1')             // strikethrough
-    .replace(/\n{3,}/g, '\n\n')              // collapse excess newlines
-}
-
-// Renders streaming text with smooth word-by-word fade-in
+// Renders streaming text with smooth token-by-token animation + live cursor
 function StreamingText({ content }: { content: string }) {
-  const clean = stripMarkdown(content)
-  const words = clean.split(/(\s+)/)
+  // Split into tokens: words + whitespace preserved
+  const tokens = content.split(/(\s+)/)
   const prevLenRef = useRef(0)
-  const currentLen = words.length
+  const currentLen = tokens.length
 
-  useEffect(() => {
-    prevLenRef.current = currentLen
-  })
-
+  useEffect(() => { prevLenRef.current = currentLen })
   const prevLen = prevLenRef.current
 
   return (
     <span style={{ color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
-      {words.map((word, i) => (
+      {tokens.map((token, i) => (
         <span
           key={i}
-          className={i >= prevLen ? 'streaming-word' : ''}
-          style={i >= prevLen ? { animationDelay: `${(i - prevLen) * 18}ms` } : {}}
+          className={i >= prevLen ? 'sw-token' : ''}
+          style={i >= prevLen ? { animationDelay: `${(i - prevLen) * 12}ms` } : {}}
         >
-          {word}
+          {token}
         </span>
       ))}
+      {/* Live cursor */}
+      <span className="sw-cursor" aria-hidden="true" />
     </span>
   )
 }
@@ -618,7 +600,7 @@ export default function MessageBubble({ message, isStreaming, isLast, onRegenera
     <div className="flex items-start px-3 sm:px-4 py-2 message-fade-in max-w-3xl mx-auto w-full">
       <div className="flex-1 min-w-0">
         <div className={`text-sm leading-relaxed${isStreaming ? ' streaming-bubble rounded-xl px-3 py-2 -mx-3 -my-2' : ''}`}
-          style={isStreaming ? { border: '1px solid var(--border)', background: 'transparent' } : {}}
+          style={isStreaming ? { border: '1px solid var(--accent-border)', background: 'transparent' } : {}}
         >
         {message.generatedImages && message.generatedImages.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-2">
