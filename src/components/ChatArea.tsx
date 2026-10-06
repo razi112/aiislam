@@ -24,8 +24,7 @@ export default function ChatArea({ chat, isTyping, streamingContent, streamingTh
   const { user, guestLimitReached } = useAuth()
 
   const firstName = (
-    user?.user_metadata?.full_name ??
-    user?.user_metadata?.name ??
+    user?.displayName ??
     user?.email?.split('@')[0] ??
     null
   )?.split(' ')[0]
